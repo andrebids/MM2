@@ -1,0 +1,29 @@
+{
+    "MORNING_INFO": "Bom dia, André e Linda! 🌅\nSão {time} e em {location} estão {temp}°C com {weather}.\nHoje a máxima prevista é de {maxTemp}°C{rainInfo}.\nQue tenham um dia cheio de energia e alegria!",
+    "MIDDAY_INFO": "Boa tarde, André e Linda! ☀️\nSão {time} e a temperatura já chegou aos {temp}°C.\n{weather}, a máxima deve rondar os {maxTemp}°C.\nPerfeito para um almoço romântico ao ar livre!",
+    "AFTERNOON_INFO": "Boa tarde, André e Linda! 🌤️\nSão {time} e estão {temp}°C com {weather}.\nA temperatura máxima de hoje foi de {maxTemp}°C.\nAproveitem bem esta tarde juntos!",
+    "EVENING_INFO": "Olá, André e Linda! 🌆\nSão {time} e estão {temp}°C, com o sol a pôr-se dentro de uma hora.\nA noite será {nightDesc}, mínima de {minTemp}°C.\nQue aproveitem este momento romântico!",
+    "NIGHT_INFO": "Boa noite, André e Linda! 🌙\nSão {time} e em {location} estão {temp}°C com {weather}.\nA mínima para a madrugada é de {minTemp}°C.\nHora de relaxarem juntos e sonharem com o amanhã!",
+    "LATE_NIGHT_INFO": "Boa noite, André e Linda! 🌟\nSão {time} e em {location} estão {temp}°C com {weather}.\nAmanhã a máxima prevista é de {maxTemp}°C.\nDescansem bem, amanhã é um novo dia cheio de possibilidades!",
+    
+    "WEATHER_CLEAR": "céu limpo",
+    "WEATHER_PARTLY_CLOUDY": "céu parcialmente nublado",
+    "WEATHER_CLOUDY": "céu nublado",
+    "WEATHER_RAIN": "chuva",
+    "WEATHER_LIGHT_RAIN": "chuva ligeira",
+    "WEATHER_OVERCAST": "céu encoberto",
+    "WEATHER_FOG": "névoa",
+    "WEATHER_MIST": "bruma",
+    
+    "NIGHT_AMENA": "amena",
+    "NIGHT_FRESCA": "fresca",
+    "NIGHT_FRIA": "fria",
+    "NIGHT_QUENTE": "quente",
+    
+    "RAIN_INFO_NONE": "",
+    "RAIN_INFO_LIGHT": ", com possibilidade de chuva ligeira",
+    "RAIN_INFO_MODERATE": ", com previsão de chuva",
+    "RAIN_INFO_HEAVY": ", com previsão de chuva forte",
+    
+    "LOCATION_DEFAULT": "Lisboa"
+}

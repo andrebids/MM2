@@ -1,0 +1,29 @@
+{
+    "MORNING_INFO": "Good morning, André and Linda! 🌅\nIt's {time} and in {location} it's {temp}°C with {weather}.\nToday's maximum is expected to be {maxTemp}°C{rainInfo}.\nMay you have a day full of energy and joy!",
+    "MIDDAY_INFO": "Good afternoon, André and Linda! ☀️\nIt's {time} and the temperature has already reached {temp}°C.\n{weather}, the maximum should be around {maxTemp}°C.\nPerfect for a romantic outdoor lunch!",
+    "AFTERNOON_INFO": "Good afternoon, André and Linda! 🌤️\nIt's {time} and it's {temp}°C with {weather}.\nToday's maximum temperature was {maxTemp}°C.\nEnjoy this afternoon together!",
+    "EVENING_INFO": "Hello, André and Linda! 🌆\nIt's {time} and it's {temp}°C, with the sun setting in about an hour.\nThe night will be {nightDesc}, minimum of {minTemp}°C.\nMay you enjoy this romantic moment!",
+    "NIGHT_INFO": "Good evening, André and Linda! 🌙\nIt's {time} and in {location} it's {temp}°C with {weather}.\nThe minimum for early morning is {minTemp}°C.\nTime to relax together and dream about tomorrow!",
+    "LATE_NIGHT_INFO": "Good night, André and Linda! 🌟\nIt's {time} and in {location} it's {temp}°C with {weather}.\nTomorrow's maximum is expected to be {maxTemp}°C.\nRest well, tomorrow is a new day full of possibilities!",
+    
+    "WEATHER_CLEAR": "clear sky",
+    "WEATHER_PARTLY_CLOUDY": "partly cloudy sky",
+    "WEATHER_CLOUDY": "cloudy sky",
+    "WEATHER_RAIN": "rain",
+    "WEATHER_LIGHT_RAIN": "light rain",
+    "WEATHER_OVERCAST": "overcast sky",
+    "WEATHER_FOG": "fog",
+    "WEATHER_MIST": "mist",
+    
+    "NIGHT_AMENA": "mild",
+    "NIGHT_FRESCA": "cool",
+    "NIGHT_FRIA": "cold",
+    "NIGHT_QUENTE": "warm",
+    
+    "RAIN_INFO_NONE": "",
+    "RAIN_INFO_LIGHT": ", with possibility of light rain",
+    "RAIN_INFO_MODERATE": ", with rain forecast",
+    "RAIN_INFO_HEAVY": ", with heavy rain forecast",
+    
+    "LOCATION_DEFAULT": "Lisbon"
+}

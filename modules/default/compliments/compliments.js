@@ -4,11 +4,12 @@ Module.register("compliments", {
 	// Module config defaults.
 	defaults: {
 		compliments: {
-			anytime: ["Olá! Que tal estás?"],
-			morning: ["Bom dia! Que tenhas um dia fantástico!", "Bom dia! Aproveita o teu dia!", "Como dormiste?"],
-			afternoon: ["Olá! Como vai o teu dia?", "Estás com bom aspeto!", "Que tal o dia?"],
-			evening: ["Boa noite! Como foi o teu dia?", "Boa noite! Descansa bem!", "Olá! Como estás?"],
-			"....-01-01": ["Feliz ano novo!"]
+			// Remover mensagens padrão - apenas usar mensagens meteorológicas informativas
+			anytime: [],
+			morning: [],
+			afternoon: [],
+			evening: [],
+			"....-01-01": ["Feliz ano novo!"]  // Manter apenas mensagem de ano novo
 		},
 		updateInterval: 30000,
 		remoteFile: null,
@@ -19,7 +20,25 @@ Module.register("compliments", {
 		afternoonStartTime: 12,
 		afternoonEndTime: 17,
 		random: true,
-		specialDayUnique: false
+		specialDayUnique: false,
+		
+		// Configurações para funcionalidade meteorológica informativa
+		weatherAware: true,
+		enableWeatherMessages: true,
+		enableForecastMessages: true,
+		// Configurações de período do dia para mensagens informativas
+		morningStartTime: 7,
+		morningEndTime: 11,
+		middayStartTime: 12,
+		middayEndTime: 14,
+		afternoonStartTime: 14,
+		afternoonEndTime: 17,
+		eveningStartTime: 17,
+		eveningEndTime: 20,
+		nightStartTime: 21,
+		nightEndTime: 23,
+		lateNightStartTime: 23,
+		lateNightEndTime: 7
 	},
 	urlSuffix: "",
 	compliments_new: null,
@@ -27,6 +46,9 @@ Module.register("compliments", {
 	lastIndexUsed: -1,
 	// Set currentweather from module
 	currentWeatherType: "",
+	// Propriedades para dados meteorológicos
+	weatherData: null,
+	forecastData: null,
 	cron_regex: /^(((\d+,)+\d+|((\d+|[*])[/]\d+|((JAN|FEB|APR|MA[RY]|JU[LN]|AUG|SEP|OCT|NOV|DEC)(-(JAN|FEB|APR|MA[RY]|JU[LN]|AUG|SEP|OCT|NOV|DEC))?))|(\d+-\d+)|\d+(-\d+)?[/]\d+(-\d+)?|\d+|[*]|(MON|TUE|WED|THU|FRI|SAT|SUN)(-(MON|TUE|WED|THU|FRI|SAT|SUN))?) ?){5}$/i,
 	date_regex: "[1-9.][0-9.][0-9.]{2}-([0][1-9]|[1][0-2])-([1-2][0-9]|[0][1-9]|[3][0-1])",
 	pre_defined_types: ["anytime", "morning", "afternoon", "evening"],
@@ -35,11 +57,22 @@ Module.register("compliments", {
 		return ["croner.js", "moment.js"];
 	},
 
+	// Define translations
+	getTranslations: function() {
+		return {
+			en: "translations/en.json",
+			pt: "translations/pt.json"
+		};
+	},
+
 	// Define start sequence.
 	async start () {
 		Log.info(`Starting module: ${this.name}`);
 
 		this.lastComplimentIndex = -1;
+		// Inicializar dados meteorológicos
+		this.weatherData = null;
+		this.forecastData = null;
 
 		if (this.config.remoteFile !== null) {
 			const response = await this.loadComplimentFile();
@@ -246,18 +279,289 @@ Module.register("compliments", {
 		return compliments[index] || "";
 	},
 
+	/**
+	 * Obter mensagem informativa baseada no tempo meteorológico
+	 * @returns {string|null} mensagem informativa baseada no tempo ou null se não aplicável
+	 */
+	getWeatherBasedCompliment() {
+		Log.log(this.name + " === INICIANDO getWeatherBasedCompliment ===");
+		
+		// Debug: verificar se a funcionalidade está ativa
+		if (!this.config.weatherAware) {
+			Log.log(this.name + " weatherAware is false");
+			return null;
+		}
+		
+		if (!this.weatherData) {
+			Log.log(this.name + " weatherData is null/undefined");
+			return null;
+		}
+
+		Log.log(this.name + " weatherData received:", this.weatherData);
+		
+		// Forçar sempre a exibição de mensagens meteorológicas quando há dados disponíveis
+		// Remover a verificação que impede a exibição
+		
+		const temp = this.weatherData.temperature;
+		const hour = moment().hour();
+		const weatherType = this.weatherData.weatherType;
+		const location = this.weatherData.locationName || this.translate("LOCATION_DEFAULT");
+		const currentTime = moment().format("HH:mm");
+		
+		Log.log(this.name + " processing weather message - temp:", temp, "hour:", hour, "weatherType:", weatherType);
+
+		// Obter dados de previsão se disponíveis
+		let maxTemp = null;
+		let minTemp = null;
+		let rainProb = 0;
+		
+		if (this.forecastData && this.forecastData.length > 0) {
+			const today = this.forecastData[0];
+			maxTemp = today.maxTemperature;
+			minTemp = today.minTemperature;
+			rainProb = today.precipitationProbability || 0;
+			
+			Log.log(this.name + " forecast data:", {
+				maxTemp: maxTemp,
+				minTemp: minTemp,
+				rainProb: rainProb,
+				today: today
+			});
+		} else {
+			Log.log(this.name + " no forecast data available");
+		}
+
+		// Determinar período do dia e gerar mensagem apropriada
+		let weatherMessage = null;
+		
+		if (hour >= 7 && hour < 11) {
+			// Manhã (07h-11h)
+			weatherMessage = this.generateMorningMessage(currentTime, location, temp, weatherType, maxTemp, rainProb);
+			Log.log(this.name + " generating morning message:", weatherMessage);
+		} else if (hour >= 12 && hour < 14) {
+			// Meio-dia (12h-14h)
+			weatherMessage = this.generateMiddayMessage(currentTime, temp, weatherType, maxTemp);
+			Log.log(this.name + " generating midday message:", weatherMessage);
+		} else if (hour >= 14 && hour < 17) {
+			// Tarde (14h-17h)
+			weatherMessage = this.generateAfternoonMessage(currentTime, temp, weatherType, maxTemp);
+			Log.log(this.name + " generating afternoon message:", weatherMessage);
+		} else if (hour >= 17 && hour < 20) {
+			// Fim de tarde (17h-20h)
+			weatherMessage = this.generateEveningMessage(currentTime, temp, weatherType, minTemp);
+			Log.log(this.name + " generating evening message:", weatherMessage);
+		} else if (hour >= 21 && hour < 23) {
+			// Noite (21h-23h)
+			weatherMessage = this.generateNightMessage(currentTime, location, temp, weatherType, minTemp);
+			Log.log(this.name + " generating night message:", weatherMessage);
+		} else if (hour >= 23 || hour < 7) {
+			// Noite tardia (23h-07h)
+			weatherMessage = this.generateLateNightMessage(currentTime, location, temp, weatherType, maxTemp);
+			Log.log(this.name + " generating late night message:", weatherMessage);
+		}
+		
+		Log.log(this.name + " final weather message:", weatherMessage);
+		Log.log(this.name + " === TERMINANDO getWeatherBasedCompliment ===");
+		return weatherMessage;
+	},
+
+	/**
+	 * Gerar mensagem da manhã
+	 */
+	generateMorningMessage(time, location, temp, weatherType, maxTemp, rainProb) {
+		const weather = this.getWeatherDescription(weatherType);
+		const rainInfo = this.getRainInfo(rainProb);
+		const maxTempText = maxTemp ? Math.round(maxTemp) : "N/A";
+		
+		return this.translate("MORNING_INFO", {
+			time: time,
+			location: location,
+			temp: Math.round(temp),
+			weather: weather,
+			maxTemp: maxTempText,
+			rainInfo: rainInfo
+		});
+	},
+
+	/**
+	 * Gerar mensagem do meio-dia
+	 */
+	generateMiddayMessage(time, temp, weatherType, maxTemp) {
+		const weather = this.getWeatherDescription(weatherType);
+		const maxTempText = maxTemp ? Math.round(maxTemp) : "N/A";
+		
+		return this.translate("MIDDAY_INFO", {
+			time: time,
+			temp: Math.round(temp),
+			weather: weather,
+			maxTemp: maxTempText
+		});
+	},
+
+	/**
+	 * Gerar mensagem da tarde
+	 */
+	generateAfternoonMessage(time, temp, weatherType, maxTemp) {
+		const weather = this.getWeatherDescription(weatherType);
+		const maxTempText = maxTemp ? Math.round(maxTemp) : "N/A";
+		
+		return this.translate("AFTERNOON_INFO", {
+			time: time,
+			temp: Math.round(temp),
+			weather: weather,
+			maxTemp: maxTempText
+		});
+	},
+
+	/**
+	 * Gerar mensagem do fim de tarde
+	 */
+	generateEveningMessage(time, temp, weatherType, minTemp) {
+		const weather = this.getWeatherDescription(weatherType);
+		const minTempText = minTemp ? Math.round(minTemp) : "N/A";
+		const nightDesc = this.getNightDescription(minTemp);
+		
+		return this.translate("EVENING_INFO", {
+			time: time,
+			temp: Math.round(temp),
+			weather: weather,
+			nightDesc: nightDesc,
+			minTemp: minTempText
+		});
+	},
+
+	/**
+	 * Gerar mensagem da noite
+	 */
+	generateNightMessage(time, location, temp, weatherType, minTemp) {
+		const weather = this.getWeatherDescription(weatherType);
+		const minTempText = minTemp ? Math.round(minTemp) : "N/A";
+		
+		return this.translate("NIGHT_INFO", {
+			time: time,
+			location: location,
+			temp: Math.round(temp),
+			weather: weather,
+			minTemp: minTempText
+		});
+	},
+
+	/**
+	 * Gerar mensagem da noite tardia
+	 */
+	generateLateNightMessage(time, location, temp, weatherType, maxTemp) {
+		const weather = this.getWeatherDescription(weatherType);
+		const maxTempText = maxTemp ? Math.round(maxTemp) : "N/A";
+		
+		return this.translate("LATE_NIGHT_INFO", {
+			time: time,
+			location: location,
+			temp: Math.round(temp),
+			weather: weather,
+			maxTemp: maxTempText
+		});
+	},
+
+	/**
+	 * Obter descrição do tempo baseada no tipo
+	 */
+	getWeatherDescription(weatherType) {
+		if (!weatherType) return this.translate("WEATHER_CLEAR");
+		
+		Log.log(this.name + " mapping weather type:", weatherType);
+		
+		const weatherMap = {
+			"clear-day": "WEATHER_CLEAR",
+			"clear-night": "WEATHER_CLEAR",
+			"partly-cloudy-day": "WEATHER_PARTLY_CLOUDY",
+			"partly-cloudy-night": "WEATHER_PARTLY_CLOUDY",
+			"cloudy": "WEATHER_CLOUDY",
+			"overcast": "WEATHER_OVERCAST",
+			"rain": "WEATHER_RAIN",
+			"light-rain": "WEATHER_LIGHT_RAIN",
+			"fog": "WEATHER_FOG",
+			"mist": "WEATHER_MIST",
+			"day-cloudy": "WEATHER_PARTLY_CLOUDY",  // Adicionar mapeamento para day-cloudy
+			"night-cloudy": "WEATHER_CLOUDY"         // Adicionar mapeamento para night-cloudy
+		};
+		
+		const translationKey = weatherMap[weatherType] || "WEATHER_CLEAR";
+		Log.log(this.name + " mapped to translation key:", translationKey);
+		return this.translate(translationKey);
+	},
+
+	/**
+	 * Obter informação sobre chuva
+	 */
+	getRainInfo(rainProb) {
+		if (rainProb < 20) return this.translate("RAIN_INFO_NONE");
+		if (rainProb < 50) return this.translate("RAIN_INFO_LIGHT");
+		if (rainProb < 80) return this.translate("RAIN_INFO_MODERATE");
+		return this.translate("RAIN_INFO_HEAVY");
+	},
+
+	/**
+	 * Obter descrição da noite baseada na temperatura mínima
+	 */
+	getNightDescription(minTemp) {
+		if (!minTemp) return this.translate("NIGHT_AMENA");
+		
+		if (minTemp < 10) return this.translate("NIGHT_FRIA");
+		if (minTemp < 15) return this.translate("NIGHT_FRESCA");
+		if (minTemp > 20) return this.translate("NIGHT_QUENTE");
+		return this.translate("NIGHT_AMENA");
+	},
+
+	/**
+	 * Obter mensagem baseada em previsões meteorológicas
+	 * @returns {string|null} mensagem baseada em previsões ou null se não aplicável
+	 */
+	getForecastBasedMessage() {
+		// Esta função agora é integrada na função principal getWeatherBasedCompliment
+		// que já inclui informações de previsão nas mensagens informativas
+		return null;
+	},
+
 	// Override dom generator.
 	getDom () {
 		const wrapper = document.createElement("div");
-		wrapper.className = this.config.classes ? this.config.classes : "thin xlarge bright pre-line";
-		// get the compliment text
-		const complimentText = this.getRandomCompliment();
+		wrapper.className = this.config.classes ? this.config.classes : "thin medium bright pre-line";
+		
+		// Tentar obter mensagem baseada no tempo primeiro
+		const weatherMessage = this.getWeatherBasedCompliment();
+		const forecastMessage = this.getForecastBasedMessage();
+		const randomCompliment = this.getRandomCompliment();
+		
+		// Forçar sempre mensagens meteorológicas - se não existirem, não mostrar nada
+		let complimentText;
+		if (weatherMessage) {
+			complimentText = weatherMessage;
+			Log.log(this.name + " Using weather message:", weatherMessage);
+		} else if (forecastMessage) {
+			complimentText = forecastMessage;
+			Log.log(this.name + " Using forecast message:", forecastMessage);
+		} else {
+			// Não mostrar nada se não há mensagens meteorológicas
+			complimentText = "";
+			Log.log(this.name + " No weather messages available - showing nothing");
+		}
+		
+		// Debug: verificar qual mensagem está a ser usada
+		Log.log(this.name + " DOM generation - weatherMessage:", weatherMessage);
+		Log.log(this.name + " DOM generation - forecastMessage:", forecastMessage);
+		Log.log(this.name + " DOM generation - randomCompliment:", randomCompliment);
+		Log.log(this.name + " DOM generation - final complimentText:", complimentText);
+		
 		// split it into parts on newline text
+		Log.log(this.name + " Processing complimentText:", complimentText);
 		const parts = complimentText.split("\n");
+		Log.log(this.name + " Parts after split:", parts);
+		
 		// create a span to hold the compliment
 		const compliment = document.createElement("span");
 		// process all the parts of the compliment text
 		for (const part of parts) {
+			Log.log(this.name + " Processing part:", part);
 			if (part !== "") {
 				// create a text element for each part
 				compliment.appendChild(document.createTextNode(part));
@@ -266,10 +570,14 @@ Module.register("compliments", {
 			}
 		}
 		// only add compliment to wrapper if there is actual text in there
+		Log.log(this.name + " compliment.children.length:", compliment.children.length);
 		if (compliment.children.length > 0) {
 			// remove the last break
 			compliment.lastElementChild.remove();
 			wrapper.appendChild(compliment);
+			Log.log(this.name + " Added compliment to wrapper");
+		} else {
+			Log.log(this.name + " No children to add to wrapper");
 		}
 		// if a new set of compliments was loaded from the refresh task
 		// we do this here to make sure no other function is using the compliments list
@@ -299,6 +607,29 @@ Module.register("compliments", {
 	notificationReceived (notification, payload, sender) {
 		if (notification === "CURRENTWEATHER_TYPE") {
 			this.currentWeatherType = payload.type;
+		}
+		
+		// Nova funcionalidade: receber dados meteorológicos completos
+		if (notification === "WEATHER_UPDATED") {
+			Log.log(this.name + " received weather data from: " + (sender ? sender.name : "unknown"));
+			Log.log(this.name + " payload received:", payload);
+			
+			// Só atualizar se os dados não forem null/undefined
+			if (payload.currentWeather) {
+				this.weatherData = payload.currentWeather;
+				Log.log(this.name + " Updated weatherData:", this.weatherData);
+			} else {
+				Log.log(this.name + " payload.currentWeather is null/undefined - keeping existing data");
+			}
+			
+			if (payload.forecastArray) {
+				this.forecastData = payload.forecastArray;
+				Log.log(this.name + " Updated forecastData:", this.forecastData);
+			} else {
+				Log.log(this.name + " payload.forecastArray is null/undefined - keeping existing data");
+			}
+			
+			this.updateDom();
 		}
 	}
 });

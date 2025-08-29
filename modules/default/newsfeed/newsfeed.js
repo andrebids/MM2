@@ -280,6 +280,9 @@ Module.register("newsfeed", {
 		}
 
 		this.newsItems = newsItems;
+		
+		// Log para debug - verificar quantas notícias foram carregadas
+		Log.info(`${this.name} - Carregadas ${this.newsItems.length} notícias`);
 	},
 
 	/**
@@ -325,26 +328,20 @@ Module.register("newsfeed", {
 		if (this.timer) clearInterval(this.timer);
 
 		this.timer = setInterval(() => {
-
-			/*
-			 * When animations are enabled, don't update the DOM unless we are actually changing what we are displaying.
-			 * (Animating from a headline to itself is unsightly.)
-			 * Cases:
-			 *
-			 * Number of items | Number of items | Display
-			 * at last update  |   right now     | Behaviour
-			 * ----------------------------------------------------
-			 *     0           |      0          | do not update
-			 *     0           |     >0          | update
-			 *     1           |   0 or >1       | update
-			 *     1           |      1          | update only if item details (hash value) changed
-			 *    >1           |    any          | update
-			 *
-			 * (N.B. We set activeItemCount and activeItemHash in getTemplateData().)
-			 */
-			if (this.newsItems.length > 1 || this.newsItems.length !== this.activeItemCount || this.activeItemHash !== this.newsItems[0]?.hash) {
-				this.activeItem++; // this is OK if newsItems.Length==1; getTemplateData will wrap it around
+			// LÓGICA CORRIGIDA: Sempre alternar se há múltiplas notícias
+			if (this.newsItems.length > 1) {
+				this.activeItem++; // Avançar para a próxima notícia
+				if (this.activeItem >= this.newsItems.length) {
+					this.activeItem = 0; // Voltar ao início se chegou ao fim
+				}
+				Log.info(`${this.name} - Alternando para notícia #${this.activeItem + 1} de ${this.newsItems.length}`);
 				this.updateDom(this.config.animationSpeed);
+			} else if (this.newsItems.length === 1) {
+				// Se há apenas uma notícia, verificar se mudou
+				if (this.activeItemHash !== this.newsItems[0]?.hash) {
+					Log.info(`${this.name} - Atualizando notícia única`);
+					this.updateDom(this.config.animationSpeed);
+				}
 			}
 
 			// Broadcast NewsFeed if needed
