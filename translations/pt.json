@@ -27,7 +27,7 @@
 	"NW": "NO",
 	"NNW": "NNO",
 
-	"FEELS": "Sentida {DEGREE}",
+	"FEELS": "Sensação térmica {DEGREE}",
 	"PRECIP_POP": "Prob. Precipitação",
 	"PRECIP_AMOUNT": "Quantidade de precipitação",
 

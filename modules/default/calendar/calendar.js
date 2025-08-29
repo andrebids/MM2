@@ -118,6 +118,16 @@ Module.register("calendar", {
 		// data holder of calendar url. Avoid fade out/in on updateDom (one for each calendar update)
 		this.calendarDisplayer = {};
 
+		// Add timeout to prevent infinite loading
+		this.loadingTimeout = setTimeout(() => {
+			if (!this.loaded) {
+				Log.warn("Calendar loading timeout - marking as loaded with error");
+				this.loaded = true;
+				this.error = this.translate("MODULE_ERROR_UNSPECIFIED");
+				this.updateDom(this.config.animationSpeed);
+			}
+		}, 30000); // 30 seconds timeout
+
 		this.config.calendars.forEach((calendar) => {
 			calendar.url = calendar.url.replace("webcal://", "http://");
 
@@ -186,6 +196,12 @@ Module.register("calendar", {
 
 		if (notification === "CALENDAR_EVENTS") {
 			if (this.hasCalendarURL(payload.url)) {
+				// Clear loading timeout since we received data
+				if (this.loadingTimeout) {
+					clearTimeout(this.loadingTimeout);
+					this.loadingTimeout = null;
+				}
+
 				this.calendarData[payload.url] = payload.events;
 				this.error = null;
 				this.loaded = true;
@@ -207,6 +223,12 @@ Module.register("calendar", {
 				}
 			}
 		} else if (notification === "CALENDAR_ERROR") {
+			// Clear loading timeout since we received an error
+			if (this.loadingTimeout) {
+				clearTimeout(this.loadingTimeout);
+				this.loadingTimeout = null;
+			}
+
 			let error_message = this.translate(payload.error_type);
 			this.error = this.translate("MODULE_CONFIG_ERROR", { MODULE_NAME: this.name, ERROR: error_message });
 			this.loaded = true;
@@ -932,6 +954,16 @@ Module.register("calendar", {
 		}
 
 		this.sendNotification("CALENDAR_EVENTS", eventList);
+	},
+
+	/**
+	 * Override stop method to clean up timeouts
+	 */
+	stop () {
+		if (this.loadingTimeout) {
+			clearTimeout(this.loadingTimeout);
+			this.loadingTimeout = null;
+		}
 	},
 
 	/**
