@@ -22,36 +22,156 @@ Transformar o módulo "compliments" em um sistema inteligente que fornece inform
 
 ---
 
+## Estrutura do Módulo Seguindo as Melhores Práticas
+
+### Estrutura de Ficheiros Recomendada
+```
+compliments/
+├── compliments.js          # Script principal do módulo (modificado)
+├── node_helper.js          # Helper Node.js (opcional - para lógica complexa)
+├── css/
+│   └── compliments.css     # Estilos específicos (se necessário)
+├── translations/           # Ficheiros de tradução
+│   ├── en.json
+│   └── pt.json
+└── README.md              # Documentação atualizada
+```
+
+### Configuração Padrão (defaults)
+```javascript
+defaults: {
+    // Configurações existentes
+    compliments: {
+        anytime: ["Olá! Que tal estás?"],
+        morning: ["Bom dia! Que tenhas um dia fantástico!", "Bom dia! Aproveita o teu dia!", "Como dormiste?"],
+        afternoon: ["Olá! Como vai o teu dia?", "Estás com bom aspeto!", "Que tal o dia?"],
+        evening: ["Boa noite! Como foi o teu dia?", "Boa noite! Descansa bem!", "Olá! Como estás?"],
+        "....-01-01": ["Feliz ano novo!"]
+    },
+    updateInterval: 30000,
+    fadeSpeed: 4000,
+    
+    // Novas configurações para funcionalidade de tempo
+    weatherAware: true,
+    temperatureThresholds: {
+        cold: 15,
+        hot: 25
+    },
+    rainThreshold: 70,
+    windThreshold: 30,
+    weatherTypeMapping: {
+        "clear-day": "sol",
+        "rain": "chuva",
+        "cloudy": "nublado",
+        "partly-cloudy-day": "parcialmente nublado"
+    },
+    enableWeatherMessages: true,
+    enableForecastMessages: true,
+    enableClothingSuggestions: true
+}
+```
+
+---
+
 ## Fase 1: Análise e Estrutura Base (Debug Simples)
 
 ### 1.1 Objetivos da Fase 1
 - Estabelecer comunicação entre módulos weather e compliments
 - Criar estrutura básica de mensagens baseadas no tempo
 - Testar integração básica
+- Implementar logging adequado
 
-### 1.2 Implementação
-1. **Modificar compliments.js** para receber dados do weather
-   - Adicionar listener para `WEATHER_UPDATED` notification
-   - Criar estrutura para armazenar dados meteorológicos
-   - Implementar fallback para dados indisponíveis
+### 1.2 Implementação Seguindo as Melhores Práticas
 
-2. **Criar mensagens básicas** baseadas em:
-   - Temperatura atual (`temperature`)
-   - Sensação térmica (`feelsLikeTemp`)
-   - Condições gerais (`weatherType`)
-   - Hora do dia
+#### 1.2.1 Modificar compliments.js
+```javascript
+Module.register("compliments", {
+    // Configuração padrão (incluir weatherAware: true)
+    defaults: {
+        // ... configurações existentes ...
+        weatherAware: true,
+        temperatureThresholds: {
+            cold: 15,
+            hot: 25
+        }
+    },
 
-3. **Mensagens de teste**:
-   ```
-   Manhã + Frio: "Bom dia! Está frio hoje, leva casaco!"
-   Manhã + Chuva: "Bom dia! Vai chover, não te esqueças do guarda-chuva!"
-   Manhã + Sol: "Bom dia! Está sol, aproveita o dia!"
-   ```
+    // Propriedades da instância
+    weatherData: null,
+    forecastData: null,
+
+    // Método start() - chamado quando todos os módulos estão carregados
+    start: function() {
+        Log.info("Starting module: " + this.name);
+        this.weatherData = null;
+        this.forecastData = null;
+        
+        // Agendar atualizações
+        this.scheduleUpdate();
+    },
+
+    // Método notificationReceived - recebe notificações de outros módulos
+    notificationReceived: function(notification, payload, sender) {
+        if (notification === "WEATHER_UPDATED") {
+            Log.log(this.name + " received weather data from: " + (sender ? sender.name : "unknown"));
+            this.weatherData = payload.currentWeather;
+            this.forecastData = payload.forecastArray;
+            this.updateDom();
+        }
+    },
+
+    // Método getDom() - OBRIGATÓRIO
+    getDom: function() {
+        const wrapper = document.createElement("div");
+        wrapper.className = this.config.classes ? this.config.classes : "thin xlarge bright pre-line";
+        
+        const complimentText = this.getWeatherBasedCompliment();
+        if (complimentText) {
+            wrapper.innerHTML = complimentText;
+        } else {
+            // Fallback para mensagens normais
+            wrapper.innerHTML = this.getRandomCompliment();
+        }
+        
+        return wrapper;
+    },
+
+    // Método para obter mensagem baseada no tempo
+    getWeatherBasedCompliment: function() {
+        if (!this.config.weatherAware || !this.weatherData) {
+            return null;
+        }
+
+        const temp = this.weatherData.temperature;
+        const hour = moment().hour();
+        
+        // Mensagens básicas por período
+        if (hour >= 6 && hour < 12) {
+            if (temp < this.config.temperatureThresholds.cold) {
+                return "Bom dia! Está frio hoje, leva casaco!";
+            }
+            if (this.weatherData.precipitationProbability > this.config.rainThreshold) {
+                return "Bom dia! Vai chover, não te esqueças do guarda-chuva!";
+            }
+        }
+        
+        return null;
+    }
+});
+```
+
+#### 1.2.2 Implementar Logging Adequado
+```javascript
+// Usar Log.info, Log.log, Log.error conforme apropriado
+Log.info(this.name + " Weather data received: " + JSON.stringify(this.weatherData));
+Log.error(this.name + " Failed to process weather data");
+```
 
 ### 1.3 Critérios de Sucesso
-- Módulo compliments recebe dados do weather
+- Módulo compliments recebe dados do weather via notificações
 - Mensagens mudam baseadas no tempo
 - Sistema funciona sem erros
+- Logging adequado implementado
 
 ---
 
@@ -61,32 +181,80 @@ Transformar o módulo "compliments" em um sistema inteligente que fornece inform
 - Implementar lógica mais sofisticada
 - Adicionar mais variáveis meteorológicas disponíveis
 - Criar mensagens contextuais
+- Implementar sistema de tradução
 
 ### 2.2 Implementação
-1. **Variáveis meteorológicas a considerar** (baseadas no WeatherObject):
-   - Temperatura atual (`temperature`) e sensação térmica (`feelsLikeTemp`)
-   - Probabilidade de precipitação (`precipitationProbability`)
-   - Velocidade do vento (`windSpeed`)
-   - Humidade (`humidity`)
-   - Tipo de tempo (`weatherType`)
-   - Temperatura máxima/mínima (`maxTemperature`, `minTemperature`)
 
-2. **Lógica de decisão**:
-   ```
-   SE manhã E temperature < 15°C: "Bom dia! Está frio, leva casaco quente!"
-   SE manhã E precipitationProbability > 70%: "Bom dia! Vai chover muito, leva guarda-chuva!"
-   SE manhã E windSpeed > 30km/h: "Bom dia! Está ventoso, leva casaco!"
-   SE manhã E weatherType.includes("clear"): "Bom dia! Sol forte, não te esqueças do protetor solar!"
-   ```
+#### 2.2.1 Sistema de Tradução
+```javascript
+// Adicionar getTranslations()
+getTranslations: function() {
+    return {
+        en: "translations/en.json",
+        pt: "translations/pt.json"
+    };
+}
+```
 
-3. **Mensagens por período**:
-   - **Manhã (6h-12h)**: Preparação para sair
-   - **Tarde (12h-18h)**: Avisos para atividades
-   - **Noite (18h-6h)**: Preparação para regresso
+#### 2.2.2 Ficheiro de Traduções (translations/pt.json)
+```json
+{
+    "COLD_MORNING": "Bom dia! Está frio, leva casaco quente!",
+    "RAIN_MORNING": "Bom dia! Vai chover, leva guarda-chuva!",
+    "WINDY_MORNING": "Bom dia! Está ventoso, leva casaco!",
+    "SUNNY_MORNING": "Bom dia! Sol forte, não te esqueças do protetor solar!",
+    "COLD_AFTERNOON": "Está frio, leva casaco!",
+    "RAIN_AFTERNOON": "Vai chover, leva guarda-chuva!",
+    "COLD_EVENING": "Boa noite! Está frio, leva casaco!",
+    "RAIN_EVENING": "Boa noite! Vai chover, leva guarda-chuva!"
+}
+```
+
+#### 2.2.3 Lógica de Decisão Melhorada
+```javascript
+getWeatherBasedCompliment: function() {
+    if (!this.config.weatherAware || !this.weatherData) {
+        return null;
+    }
+
+    const temp = this.weatherData.temperature;
+    const hour = moment().hour();
+    const windSpeed = this.weatherData.windSpeed;
+    const rainProb = this.weatherData.precipitationProbability;
+    const weatherType = this.weatherData.weatherType;
+
+    // Determinar período do dia
+    let timeOfDay = "anytime";
+    if (hour >= 6 && hour < 12) timeOfDay = "morning";
+    else if (hour >= 12 && hour < 18) timeOfDay = "afternoon";
+    else timeOfDay = "evening";
+
+    // Lógica de decisão
+    if (timeOfDay === "morning") {
+        if (temp < this.config.temperatureThresholds.cold) {
+            return this.translate("COLD_MORNING");
+        }
+        if (rainProb > this.config.rainThreshold) {
+            return this.translate("RAIN_MORNING");
+        }
+        if (windSpeed > this.config.windThreshold) {
+            return this.translate("WINDY_MORNING");
+        }
+        if (weatherType && weatherType.includes("clear")) {
+            return this.translate("SUNNY_MORNING");
+        }
+    }
+    
+    // Lógica similar para tarde e noite...
+    
+    return null;
+}
+```
 
 ### 2.3 Critérios de Sucesso
 - Mensagens são contextuais e úteis
 - Sistema responde a múltiplas variáveis
+- Sistema de tradução funcionando
 - Performance mantida
 
 ---
@@ -97,25 +265,47 @@ Transformar o módulo "compliments" em um sistema inteligente que fornece inform
 - Integrar dados de previsão (forecast)
 - Criar avisos antecipados
 - Implementar sugestões de vestuário
+- Adicionar configurações avançadas
 
 ### 3.2 Implementação
-1. **Dados de previsão** (via `forecastArray`):
-   - Temperatura máxima/mínima do dia
-   - Previsão para próximas horas
-   - Tendência do tempo
 
-2. **Mensagens de planeamento**:
-   ```
-   "Hoje vai estar frio (máx 12°C), leva casaco quente!"
-   "Vai chover à tarde, leva guarda-chuva!"
-   "Sol forte hoje, protetor solar essencial!"
-   "Temperatura vai baixar à noite, leva casaco extra!"
-   ```
+#### 3.2.1 Configurações Avançadas
+```javascript
+defaults: {
+    // ... configurações anteriores ...
+    enableForecastMessages: true,
+    enableClothingSuggestions: true,
+    forecastThresholds: {
+        tempChange: 5,  // Mudança significativa de temperatura
+        rainProbability: 50
+    }
+}
+```
 
-3. **Sugestões de vestuário**:
-   - Baseadas na temperatura e condições
-   - Adaptadas à estação do ano
-   - Considerando atividades típicas
+#### 3.2.2 Lógica de Previsão
+```javascript
+getForecastBasedMessage: function() {
+    if (!this.config.enableForecastMessages || !this.forecastData || this.forecastData.length === 0) {
+        return null;
+    }
+
+    const today = this.forecastData[0];
+    const currentTemp = this.weatherData.temperature;
+    const maxTemp = today.maxTemperature;
+    const minTemp = today.minTemperature;
+
+    // Verificar mudanças significativas
+    if (maxTemp - currentTemp > this.config.forecastThresholds.tempChange) {
+        return this.translate("TEMP_RISING", { maxTemp: Math.round(maxTemp) });
+    }
+
+    if (currentTemp - minTemp > this.config.forecastThresholds.tempChange) {
+        return this.translate("TEMP_DROPPING", { minTemp: Math.round(minTemp) });
+    }
+
+    return null;
+}
+```
 
 ### 3.3 Critérios de Sucesso
 - Mensagens incluem previsões
@@ -130,29 +320,44 @@ Transformar o módulo "compliments" em um sistema inteligente que fornece inform
 - Adicionar contexto pessoal
 - Implementar configurações personalizáveis
 - Otimizar performance
+- Documentação completa
 
 ### 4.2 Implementação
-1. **Contexto pessoal**:
-   - Preferências de vestuário
-   - Atividades programadas (via calendar - desenvolvimento futuro)
-   - Histórico de preferências
 
-2. **Configurações**:
-   - Ativar/desativar tipos de mensagens
-   - Personalizar temperaturas de referência
-   - Definir horários de avisos
+#### 4.2.1 Configurações Personalizáveis
+```javascript
+defaults: {
+    // ... configurações anteriores ...
+    personalPreferences: {
+        coldSensitive: false,
+        rainSensitive: true,
+        windSensitive: false
+    },
+    customThresholds: {
+        personalCold: 18,
+        personalHot: 22
+    }
+}
+```
 
-3. **Mensagens avançadas**:
-   ```
-   "Tens reunião às 14h, vai chover, leva guarda-chuva!"
-   "Hoje é dia de treino, está sol, perfeito para correr!"
-   "Vais sair à noite, temperatura vai baixar para 8°C!"
-   ```
+#### 4.2.2 Integração com Calendar (Futuro)
+```javascript
+notificationReceived: function(notification, payload, sender) {
+    if (notification === "WEATHER_UPDATED") {
+        // ... código existente ...
+    }
+    if (notification === "CALENDAR_EVENTS") {
+        this.calendarEvents = payload;
+        this.updateDom();
+    }
+}
+```
 
 ### 4.3 Critérios de Sucesso
 - Sistema é personalizável
 - Mensagens são relevantes
 - Performance otimizada
+- Documentação completa
 
 ---
 
@@ -160,29 +365,15 @@ Transformar o módulo "compliments" em um sistema inteligente que fornece inform
 
 ### Ficheiros a Modificar
 1. `magic/modules/default/compliments/compliments.js` - Principal
-2. `magic/config/config.js` - Configurações
+2. `magic/modules/default/compliments/translations/pt.json` - Traduções
+3. `magic/config/config.js` - Configurações (opcional)
 
 ### Novas Funcionalidades
 1. **Listener de dados meteorológicos** (via `WEATHER_UPDATED`)
 2. **Sistema de decisão inteligente**
 3. **Mensagens contextuais**
-4. **Configurações personalizáveis**
-
-### Variáveis de Configuração
-```javascript
-weatherAware: true,
-temperatureThresholds: {
-    cold: 15,
-    hot: 25
-},
-rainThreshold: 70,
-windThreshold: 30,
-weatherTypeMapping: {
-    "clear-day": "sol",
-    "rain": "chuva",
-    "cloudy": "nublado"
-}
-```
+4. **Sistema de tradução**
+5. **Configurações personalizáveis**
 
 ### Estrutura de Dados WeatherObject Disponível
 ```javascript
@@ -205,23 +396,27 @@ weatherTypeMapping: {
 ## Cronograma de Implementação
 
 ### Semana 1: Fase 1
-- Análise do código atual ✅
+- ✅ Análise do código atual
 - Implementação básica de comunicação
 - Testes simples
+- Logging adequado
 
 ### Semana 2: Fase 2
 - Lógica de decisão
+- Sistema de tradução
 - Mensagens contextuais
 - Testes intermédios
 
 ### Semana 3: Fase 3
 - Integração com previsões
 - Mensagens de planeamento
+- Configurações avançadas
 - Testes avançados
 
 ### Semana 4: Fase 4
 - Personalização
 - Otimizações
+- Documentação completa
 - Testes finais
 
 ---
@@ -232,6 +427,7 @@ weatherTypeMapping: {
 2. **Performance**: Tempo de resposta < 1 segundo
 3. **Precisão**: Mensagens relevantes > 90%
 4. **Usabilidade**: Configuração simples e intuitiva
+5. **Manutenibilidade**: Código limpo e bem documentado
 
 ---
 
@@ -242,6 +438,7 @@ weatherTypeMapping: {
 - Acesso a dados meteorológicos completos
 - Sistema de configuração personalizável
 - Mensagens baseadas em múltiplas variáveis
+- Sistema de tradução nativo
 
 ### ⚠️ Limitações Identificadas:
 - Dados de UV não disponíveis (requer provider específico)
@@ -257,31 +454,74 @@ weatherTypeMapping: {
 
 ---
 
-## Implementação Recomendada
+## Implementação Recomendada Seguindo as Melhores Práticas
 
-### Passo 1: Testar Comunicação
+### Passo 1: Estrutura Básica
 ```javascript
-// Em compliments.js
-notificationReceived(notification, payload, sender) {
-    if (notification === "WEATHER_UPDATED") {
-        this.weatherData = payload.currentWeather;
-        this.forecastData = payload.forecastArray;
-        Log.info("Weather data received:", this.weatherData);
+Module.register("compliments", {
+    defaults: {
+        weatherAware: true,
+        temperatureThresholds: { cold: 15, hot: 25 },
+        rainThreshold: 70,
+        windThreshold: 30
+    },
+
+    weatherData: null,
+    forecastData: null,
+
+    start: function() {
+        Log.info("Starting module: " + this.name);
+        this.scheduleUpdate();
+    },
+
+    notificationReceived: function(notification, payload, sender) {
+        if (notification === "WEATHER_UPDATED") {
+            Log.log(this.name + " received weather data from: " + (sender ? sender.name : "unknown"));
+            this.weatherData = payload.currentWeather;
+            this.forecastData = payload.forecastArray;
+            this.updateDom();
+        }
+    },
+
+    getDom: function() {
+        const wrapper = document.createElement("div");
+        wrapper.className = this.config.classes ? this.config.classes : "thin xlarge bright pre-line";
+        
+        const weatherMessage = this.getWeatherBasedCompliment();
+        wrapper.innerHTML = weatherMessage || this.getRandomCompliment();
+        
+        return wrapper;
     }
+});
+```
+
+### Passo 2: Sistema de Tradução
+```javascript
+getTranslations: function() {
+    return {
+        en: "translations/en.json",
+        pt: "translations/pt.json"
+    };
 }
 ```
 
-### Passo 2: Implementar Lógica Básica
+### Passo 3: Lógica de Decisão
 ```javascript
-getWeatherBasedMessage() {
-    if (!this.weatherData) return null;
+getWeatherBasedCompliment: function() {
+    if (!this.config.weatherAware || !this.weatherData) {
+        return null;
+    }
     
     const temp = this.weatherData.temperature;
     const hour = moment().hour();
     
     if (hour >= 6 && hour < 12) {
-        if (temp < 15) return "Bom dia! Está frio, leva casaco!";
-        if (this.weatherData.precipitationProbability > 70) return "Bom dia! Vai chover, leva guarda-chuva!";
+        if (temp < this.config.temperatureThresholds.cold) {
+            return this.translate("COLD_MORNING");
+        }
+        if (this.weatherData.precipitationProbability > this.config.rainThreshold) {
+            return this.translate("RAIN_MORNING");
+        }
     }
     
     return null;
@@ -290,7 +530,55 @@ getWeatherBasedMessage() {
 
 ---
 
+## Documentação e README
+
+### Estrutura Recomendada do README
+```markdown
+# Módulo Compliments com Integração Meteorológica
+
+## Screenshot
+[Incluir screenshot mostrando mensagens baseadas no tempo]
+
+## Descrição
+Módulo de boas-vindas inteligente que fornece mensagens contextuais baseadas nas condições meteorológicas atuais e previsões.
+
+## Funcionalidades
+- Mensagens baseadas na temperatura atual
+- Avisos de chuva e vento
+- Sugestões de vestuário
+- Integração com dados de previsão
+- Sistema de tradução completo
+
+## Configuração
+```javascript
+{
+    module: "compliments",
+    config: {
+        weatherAware: true,
+        temperatureThresholds: {
+            cold: 15,
+            hot: 25
+        },
+        rainThreshold: 70,
+        windThreshold: 30
+    }
+}
+```
+
+## Dependências
+- Módulo weather (padrão do MagicMirror²)
+- Provider meteorológico configurado
+
+## Troubleshooting
+- Verificar se o módulo weather está configurado
+- Confirmar que as notificações estão a ser enviadas
+- Verificar logs para erros de comunicação
+```
+
+---
+
 *Plano atualizado em: 29/08/2025*
-*Versão: 2.0*
+*Versão: 3.0*
 *Estado: Análise completa - Pronto para implementação*
+*Seguindo as melhores práticas do MagicMirror²*
 *Limitações identificadas e soluções propostas*
